@@ -43,7 +43,7 @@ jobs:
       - name: Build and push (tag = git sha + latest)
         uses: docker/build-push-action@v6
         with:
-          context: .
+          context: ./corebridge-core
           push: true
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/corebridge-backend:${{ github.run_number }}
@@ -62,20 +62,18 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             
-            echo "Connecting to EC2 Instance via SSH with root user"
-            sudo su - root
             echo "Success SSH connection"
             
             echo "move to /home/core_bridge"
-            cd /home/core_bridge
+            sudo cd /home/core_bridge
           
             echo "Pulling Docker Image from DockerHub, Only Backend"
-            docker compose pull backend
+            sudo docker compose pull backend
 
             echo "Running Docker Container that is Backend Service"
-            docker compose up -d --no-deps backend
+            sudo docker compose up -d --no-deps backend
                     
             echo "Cleaning up unused Docker images"
-            docker image prune -f
+            sudo docker image prune -f
 
             echo "Deployment completed."
