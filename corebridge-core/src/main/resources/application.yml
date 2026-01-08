@@ -46,6 +46,11 @@ spring:
       ssl:
         verification-mode: none
 
+  data:
+    elasticsearch:
+      repositories:
+        enabled: false
+
   jpa:
     properties:
       hibernate.hibernate.default_batch_fetch_size: 100

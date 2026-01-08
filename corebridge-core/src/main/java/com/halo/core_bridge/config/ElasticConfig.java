@@ -10,12 +10,14 @@ import org.apache.http.ssl.SSLContexts;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestClientBuilder;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import javax.net.ssl.SSLContext;
 
 @Configuration
+@ConditionalOnProperty(name = "app.elasticsearch.enabled", havingValue = "true")
 public class ElasticConfig {
 
     @Value("${spring.elasticsearch.uris}")
