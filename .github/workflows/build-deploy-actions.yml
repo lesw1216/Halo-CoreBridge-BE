@@ -65,7 +65,7 @@ jobs:
             echo "Success SSH connection"
             
             echo "move to /home/core_bridge"
-            sudo cd /home/core_bridge
+            cd /home/core_bridge
           
             echo "Pulling Docker Image from DockerHub, Only Backend"
             sudo docker compose pull backend
