@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>.claude 설정 CoreBridge 재작성 보고서</title>
+<style>
+:root {
+  --bg: #fafafa; --card: #ffffff; --text: #1f2328; --muted: #656d76;
+  --accent: #0969da; --border: #d0d7de; --success: #1a7f37; --warn: #9a6700;
+  --danger: #cf222e; --code-bg: #f6f8fa;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d1117; --card: #161b22; --text: #e6edf3; --muted: #8b949e;
+    --accent: #58a6ff; --border: #30363d; --code-bg: #161b22;
+  }
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo",
+               "Malgun Gothic", system-ui, sans-serif;
+  font-size: 16px; line-height: 1.7;
+  max-width: 880px; margin: 0 auto; padding: 48px 32px;
+}
+@media (max-width: 600px) { body { padding: 24px 16px; } }
+header { margin-bottom: 24px; }
+h1 { font-size: 28px; font-weight: 600; }
+h2 { font-size: 20px; font-weight: 600; margin-bottom: 12px; }
+h3 { font-size: 16px; font-weight: 600; margin: 16px 0 8px; }
+.timestamp { color: var(--muted); font-size: 14px; margin-top: 4px; }
+.summary-line { margin-top: 8px; }
+section {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 8px; padding: 24px; margin-bottom: 16px;
+}
+ul, ol { padding-left: 24px; }
+li { margin: 4px 0; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; vertical-align: top; }
+th { background: var(--code-bg); }
+.table-wrap { overflow-x: auto; }
+.badge {
+  padding: 2px 8px; border-radius: 4px; font-size: 12px;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  color: #fff; display: inline-block;
+}
+.badge-mod { background: var(--accent); }
+.badge-add { background: var(--success); }
+.badge-del { background: var(--danger); }
+pre {
+  background: var(--code-bg); padding: 12px 16px; border-radius: 6px;
+  overflow-x: auto; font-size: 14px; margin: 8px 0;
+  border: 1px solid var(--border);
+}
+code {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  background: var(--code-bg); padding: 2px 6px; border-radius: 4px; font-size: 14px;
+}
+pre code { padding: 0; background: none; }
+.status-ok { color: var(--success); }
+.status-warn { color: var(--warn); }
+</style>
+</head>
+<body>
+<header>
+  <h1>.claude 설정 CoreBridge 재작성</h1>
+  <p class="timestamp">2026-07-23 22:29</p>
+  <p class="summary-line">Picket에서 복사된 <code>.claude/</code> 디렉토리(CLAUDE.md, rules, skills)를 실제 CoreBridge 프로젝트에 맞게 전면 재작성</p>
+</header>
+
+<main>
+<section>
+  <h2>작업 요청 요약</h2>
+  <p><code>.claude/</code> 디렉토리가 Picket(공연 예매 플랫폼) 프로젝트에서 그대로 복사되어, 현재 프로젝트인 Halo-CoreBridge-BE(채용 파이프라인 관리 ATS)와 내용이 불일치. 프로젝트를 파악한 뒤 예시와 내용을 CoreBridge에 맞게 수정 요청.</p>
+</section>
+
+<section>
+  <h2>사전 계획</h2>
+  <ul>
+    <li>Explore 에이전트로 프로젝트 전체 탐사 (스택, 패키지 구조, 컨벤션, 인프라, 브랜치)</li>
+    <li>사용자 확인: DTO 규칙은 레이어 분리 유지(목표 컨벤션), 브랜치는 실제 흐름(dev 기준) 반영, openapi.yaml 규칙 유지</li>
+    <li>CLAUDE.md 전면 재작성, rules 9개 파일 수정, skills 3개 수정, settings.local.json 잔재 제거</li>
+    <li>검증: Picket 잔재 grep 0건, gradle 명령 실제 실행 확인</li>
+  </ul>
+</section>
+
+<section>
+  <h2>탐사 결과 핵심 (Picket 설정과의 차이)</h2>
+  <ul>
+    <li>CoreBridge = ATS(채용 파이프라인 관리). 멀티모듈: <code>corebridge-core</code>(<code>com.halo.core_bridge</code>) + <code>corebridge-batch</code></li>
+    <li>Spring Boot 3.5.6, MariaDB, Redis, QueryDSL, Spring Batch, SSE 알림. WebSocket/PortOne/S3 없음</li>
+    <li>인증: 쿠키 기반 JWT (LoginFilter → JwtAuthFilter → AlreadyLoginFilter), 권한 4종 <code>UserRoleType</code></li>
+    <li><code>BaseResponse</code> 필드는 <code>success/code/message/results</code>, 예외는 <code>BaseException.from()</code> 팩토리</li>
+    <li><code>.env</code> 없음 → <code>application-{dev,prod,token}.yml</code> + 환경변수 방식</li>
+    <li><code>staging</code> 브랜치 없음 → 작업 브랜치 → <code>dev</code> push 시 GitHub Actions → EC2 자동 배포</li>
+    <li>기존 DTO는 <code>{Domain}Dto</code> nested static class 패턴 (규칙과 불일치 → 신규 코드부터 레이어 분리 적용으로 명시)</li>
+  </ul>
+</section>
+
+<section>
+  <h2>변경 파일 목록</h2>
+  <div class="table-wrap">
+  <table>
+    <tr><th>파일 경로</th><th>변경 유형</th><th>요약</th></tr>
+    <tr><td><code>.claude/CLAUDE.md</code></td><td><span class="badge badge-mod">~</span></td><td>전면 재작성: ATS 개요, 멀티모듈 빌드 명령, 실제 환경변수 표, <code>com.halo.core_bridge</code> 패키지 트리, 쿠키 JWT·SSE 알림·배치 아키텍처</td></tr>
+    <tr><td><code>.claude/rules/branch-convention.md</code></td><td><span class="badge badge-mod">~</span></td><td>staging 제거, 작업 브랜치 → dev PR + 자동 배포 흐름 반영</td></tr>
+    <tr><td><code>.claude/rules/coding-convention.md</code></td><td><span class="badge badge-mod">~</span></td><td>CORS(core-bridge.co.kr), <code>UserRoleType</code>, <code>BaseException.from()</code>, 예시 도메인 JobPosting/Interview로 교체</td></tr>
+    <tr><td><code>.claude/rules/dto-layer.md</code></td><td><span class="badge badge-mod">~</span></td><td>규칙 유지 + jobposting 예시, 기존 nested Dto 현황 및 신규 코드 적용 원칙 명시</td></tr>
+    <tr><td><code>.claude/rules/dto-create.md</code></td><td><span class="badge badge-mod">~</span></td><td>규칙 유지 + 전체 예시를 JobPosting 도메인으로 교체</td></tr>
+    <tr><td><code>.claude/rules/error-handling.md</code></td><td><span class="badge badge-mod">~</span></td><td>실제 코드 대역(20000~76000), <code>BaseException.from()</code>, 실제 GlobalExceptionHandler 구조 반영</td></tr>
+    <tr><td><code>.claude/rules/env.md</code></td><td><span class="badge badge-mod">~</span></td><td>.env 방식 → 프로파일 yml + 환경변수 방식으로 재작성, 배포 환경(compose/k8s) 반영 규칙 추가</td></tr>
+    <tr><td><code>.claude/rules/openapi.md</code></td><td><span class="badge badge-mod">~</span></td><td>규칙 유지 + CoreBridge 태그·스키마 예시, BaseResponse 실제 필드명(<code>results</code>) 반영, 파일 미존재 현황 명시</td></tr>
+    <tr><td><code>.claude/rules/testing.md</code></td><td><span class="badge badge-mod">~</span></td><td>멀티모듈 경로·명령(<code>:corebridge-core:test</code>), 예시 JobPosting 도메인으로 교체</td></tr>
+    <tr><td><code>.claude/rules/task-driven-development.md</code></td><td><span class="badge badge-mod">~</span></td><td>작업명 예시를 채용공고·면접·평가 도메인으로 교체</td></tr>
+    <tr><td><code>.claude/skills/done/SKILL.md</code></td><td><span class="badge badge-mod">~</span></td><td>테스트 명령 멀티모듈 반영, task 예시 CoreBridge 도메인으로 교체</td></tr>
+    <tr><td><code>.claude/skills/test/SKILL.md</code></td><td><span class="badge badge-mod">~</span></td><td>경로 예시 <code>com.halo.core_bridge</code>, CustomException → BaseException, 멀티모듈 명령</td></tr>
+    <tr><td><code>.claude/skills/pr/SKILL.md</code></td><td><span class="badge badge-mod">~</span></td><td>base 브랜치 staging → dev, 보호 브랜치 dev/main, 머지 시 자동 배포 주의 추가</td></tr>
+    <tr><td><code>.claude/settings.local.json</code></td><td><span class="badge badge-mod">~</span></td><td>Picket 경로 grep 허용 항목, staging base PR 허용 항목 제거</td></tr>
+  </table>
+  </div>
+</section>
+
+<section>
+  <h2>실행 명령어</h2>
+  <pre><code>grep -rniE "picket|공연|좌석|예매|portone|stomp|websocket|aws|staging|seller" .claude/ (reports 제외)
+python3 -c "import json; json.load(open('.claude/settings.local.json'))"
+./gradlew :corebridge-core:test --tests "com.halo.core_bridge.api.users.service.UserServiceTest"</code></pre>
+</section>
+
+<section>
+  <h2>검증 결과</h2>
+  <ul>
+    <li><span class="status-ok">✓</span> Picket 잔재 grep: 0건 (reports 디렉토리 제외)</li>
+    <li><span class="status-ok">✓</span> settings.local.json 문법 유효</li>
+    <li><span class="status-ok">✓</span> 문서에 인용한 클래스·경로(BaseResponse, BaseException.from, UserRoleType, SecurityConfig CORS, application-token.yml 환경변수) 실제 코드와 대조 완료</li>
+    <li><span class="status-warn">✗</span> <code>./gradlew :corebridge-core:test</code>: 명령 형식은 유효하나 <strong>기존 테스트 코드의 사전 존재 컴파일 오류</strong>로 BUILD FAILED — <code>AuthServiceTest</code>(assertThat symbol not found), <code>InterviewServiceTest.java:68</code>(assertEquals symbol not found). 이번 작업(.claude/ 문서만 수정)과 무관</li>
+  </ul>
+</section>
+
+<section>
+  <h2>알려진 제약 · Follow-up</h2>
+  <ul>
+    <li>기존 테스트 2개 클래스의 static import 누락 컴파일 오류 수정 필요 (별도 작업)</li>
+    <li><code>docs/api/openapi.yaml</code> 미존재 — 규칙은 유지했으므로 최초 생성 작업 필요 시 springdoc 어노테이션 기준으로 추출</li>
+    <li><code>ai.base-url</code>, <code>n8n.base-url</code>이 application.yml에 하드코딩 — env.md에 개선 대상으로 명시함</li>
+    <li>기존 DTO(nested <code>{Domain}Dto</code>)와 레이어 분리 규칙의 불일치는 의도된 상태 — 신규·리팩토링 코드부터 적용</li>
+    <li><code>corebridge-batch</code> 모듈의 패키지 루트가 <code>org.example.corebridgebatch</code>로 컨벤션과 어긋남 — 문서에는 사실대로 기재</li>
+  </ul>
+</section>
+</main>
+</body>
+</html>
